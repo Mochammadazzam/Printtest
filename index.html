@@ -102,18 +102,22 @@
         }
 
         async function testPrintFull() {
-            if(!selectedId) throw new Error("Belum tersambung!");
-            writeLog("Mencetak Struk...");
-            const text = "\x1B@   SUKA LAUNDRY PRO\n----------------------\nPrinter EPPOS Berhasil!\n\n\n\n";
-            const data = btoa(text);
-            await BleClient.writeWithoutResponse({
-                deviceId: selectedId,
-                service: SERVICE_UUID,
-                characteristic: CHARACTERISTIC_UUID,
-                value: data
-            });
-            writeLog("Cetak selesai.");
-        }
+    if(!selectedId) throw new Error("Belum tersambung!");
+    writeLog("Memancing printer...");
+    
+    // Gunakan banyak baris baru dan teks sederhana tanpa perintah ESC/POS rumit dulu
+    const simpleText = "CEK CEK CEK\nSUKA LAUNDRY PRO\n\n\n\n\n\n";
+    const data = btoa(simpleText);
+    
+    await BleClient.writeWithoutResponse({
+        deviceId: selectedId,
+        service: SERVICE_UUID,
+        characteristic: CHARACTERISTIC_UUID,
+        value: data
+    });
+    writeLog("Perintah sederhana terkirim.");
+}
+
     </script>
 </body>
 </html>
