@@ -41,7 +41,7 @@ jobs:
           # 2. Hapus izin lama agar tidak duplikat
           sed -i '/<uses-permission/d' $MANIFEST
           
-          # 3. Suntik izin sesuai standar Android 12-14 terbaru
+          # 3. Suntik izin sesuai standar Android 12-14 terbaru yang kamu kutip
           sed -i '/<application/i \
           <uses-permission android:name="android.permission.INTERNET" /> \
           <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" /> \
