@@ -1,12 +1,8 @@
 {
-  "appId": "com.tester.bluetooth",
-  "appName": "BT Tester Pro",
+  "appId": "com.tester.bt.fast",
+  "appName": "BT Fast Tester",
   "webDir": "www",
   "server": {
-    "androidScheme": "https",
-    "cleartext": true
-  },
-  "android": {
-    "allowMixedContent": true
+    "androidScheme": "https"
   }
 }
