@@ -1,127 +1,165 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BT Tester Pro</title>
+    <title>BT Tester Anti-Crash</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f8fafc; color: #1e293b; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .log-area { background: #0f172a; color: #38bdf8; padding: 15px; border-radius: 10px; height: 300px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 11px; border: 2px solid #334155; }
-        button { width: 100%; padding: 15px; margin: 8px 0; border: none; border-radius: 12px; font-weight: 800; cursor: pointer; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
-        .btn-primary { background: #0ea5e9; color: white; }
-        .btn-success { background: #10b981; color: white; }
-        .btn-primary:active, .btn-success:active { transform: scale(0.98); }
+        body { font-family: sans-serif; padding: 10px; background: #f0f4f8; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
+        button { padding: 12px 5px; border: none; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer; color: white; background: #4b5563; }
+        .btn-ready { background: #2563eb; }
+        .btn-action { background: #059669; }
+        .btn-danger { background: #dc2626; }
+        .log { background: #000; color: #0f0; padding: 10px; border-radius: 8px; height: 280px; overflow-y: auto; font-family: monospace; font-size: 10px; border: 2px solid #333; }
+        .section-title { font-size: 10px; font-weight: bold; color: #666; margin: 10px 0 5px 2px; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
-    <h2 style="text-align: center;">PRINTER TESTER PRO</h2>
-    
-    <div class="card">
-        <button class="btn-primary" onclick="startProcess()">MULAI SCAN & KONEK</button>
-        <button class="btn-success" onclick="testPrint()">TEST CETAK (AUTO-UUID)</button>
+    <h4 style="margin: 5px 0; text-align: center;">BT DIAGNOSTIC V2 (ANTI-CRASH)</h4>
+
+    <div class="section-title">1. System & Permissions</div>
+    <div class="grid">
+        <button class="btn-ready" onclick="safeRun(checkPermissions)">1. CEK IZIN</button>
+        <button class="btn-ready" onclick="safeRun(requestPermissions)">2. MINTA IZIN</button>
     </div>
 
-    <div class="card">
-        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <strong>System Log:</strong>
-            <small id="status-bt">🔴 Off</small>
-        </div>
-        <div id="log" class="log-area">Ready...<br></div>
+    <div class="section-title">2. Module Initialization</div>
+    <div class="grid">
+        <button class="btn-ready" onclick="safeRun(initModule)">3. INIT MODUL</button>
+        <button class="btn-ready" onclick="safeRun(checkStatus)">4. CEK STATUS BT</button>
     </div>
+
+    <div class="section-title">3. Discovery & Handshake</div>
+    <div class="grid">
+        <button class="btn-action" onclick="safeRun(scanPrinter)">5. SCAN PRINTER</button>
+        <button class="btn-action" onclick="safeRun(connectPrinter)">6. KONEK PRINTER</button>
+        <button class="btn-action" onclick="safeRun(discoverUUID)">7. DISCOVER UUID</button>
+        <button class="btn-action" onclick="safeRun(getConnectedDevices)">8. LIST KONEK</button>
+    </div>
+
+    <div class="section-title">4. Data Transmission</div>
+    <div class="grid">
+        <button class="btn-danger" onclick="safeRun(testHeartbeat)">9. TES 1 BYTE</button>
+        <button class="btn-danger" onclick="safeRun(testPrintFull)">10. CETAK STRUK</button>
+    </div>
+
+    <div class="log" id="log-box">Ready to monitor...<br></div>
 
     <script>
-        let deviceId = null;
-        let targetService = null;
-        let targetChar = null;
-        let canWriteWithoutResponse = false;
+        const BleClient = window.Capacitor.Plugins.BluetoothLe;
+        let selectedId = null;
+        let sUUID = null;
+        let cUUID = null;
 
-        function writeLog(msg, color = "#38bdf8") {
-            const log = document.getElementById('log');
-            log.innerHTML += `<span style="color:${color}">[${new Date().toLocaleTimeString()}] ${msg}</span><br>`;
-            log.scrollTop = log.scrollHeight;
+        // --- GLOBAL ERROR CATCHER (Pencegah Force Close Utama) ---
+        window.onerror = function(msg, url, line) {
+            alert("JS ERROR: " + msg + "\nLine: " + line);
+            return true; 
+        };
+
+        function writeLog(msg, isError = false) {
+            const box = document.getElementById('log-box');
+            const color = isError ? "#ff4444" : "#00ff00";
+            box.innerHTML += `<span style="color:${color}">[${new Date().toLocaleTimeString()}] ${msg}</span><br>`;
+            box.scrollTop = box.scrollHeight;
         }
 
-        async function startProcess() {
+        // Wrapper Fungsi agar jika gagal tidak langsung mati
+        async function safeRun(func) {
             try {
-                const BleClient = window.Capacitor.Plugins.BluetoothLe;
-                writeLog("Inisialisasi Bluetooth...");
-                await BleClient.initialize();
-                document.getElementById('status-bt').innerText = "🔵 On";
+                await func();
+            } catch (e) {
+                console.error(e);
+                writeLog("CRASH BLOCKED: " + e.message, true);
+                alert("Aplikasi hampir Force Close! \n\nPesan: " + e.message);
+            }
+        }
 
-                writeLog("Mencari Printer...");
-                const device = await BleClient.requestDevice({ acceptAllDevices: true });
-                deviceId = device.deviceId;
-                writeLog("Device Terpilih: " + device.name, "#10b981");
+        // --- DAFTAR FUNGSI BREAKDOWN ---
 
-                writeLog("Menyambungkan...");
-                await BleClient.connect({ deviceId });
-                writeLog("Tersambung!", "#10b981");
+        async function checkPermissions() {
+            const s = await BleClient.checkPermissions();
+            writeLog("Izin: " + JSON.stringify(s));
+        }
 
-                writeLog("Scanning UUID & Services...");
-                const result = await BleClient.getServices({ deviceId });
-                
-                // --- LOGIKA AUTO-DISCOVERY (KUNCI ANTI FORCE CLOSE) ---
-                let found = false;
-                result.forEach(s => {
+        async function requestPermissions() {
+            writeLog("Meminta izin...");
+            await BleClient.requestPermissions();
+            writeLog("Proses Izin Selesai.");
+        }
+
+        async function initModule() {
+            await BleClient.initialize();
+            writeLog("Modul Bluetooth Inisialisasi.");
+        }
+
+        async function checkStatus() {
+            const s = await BleClient.isEnabled();
+            writeLog("Bluetooth Aktif: " + s.value);
+        }
+
+        async function scanPrinter() {
+            const device = await BleClient.requestDevice({ acceptAllDevices: true });
+            selectedId = device.deviceId;
+            writeLog("Terpilih: " + device.name + " (" + selectedId + ")");
+        }
+
+        async function connectPrinter() {
+            if(!selectedId) throw new Error("ID Printer Kosong!");
+            writeLog("Menyambungkan...");
+            await BleClient.connect({ deviceId: selectedId });
+            writeLog("Status: Terhubung!");
+        }
+
+        async function discoverUUID() {
+            if(!selectedId) throw new Error("Koneksi belum ada.");
+            writeLog("Scanning Services...");
+            const res = await BleClient.getServices({ deviceId: selectedId });
+            
+            let found = false;
+            if (res && res.services) {
+                res.services.forEach(s => {
                     s.characteristics.forEach(c => {
-                        // Cari yang mendukung WRITE atau WRITE_WITHOUT_RESPONSE
                         if (c.properties.write || c.properties.writeWithoutResponse) {
-                            if (!found) {
-                                targetService = s.uuid;
-                                targetChar = c.uuid;
-                                canWriteWithoutResponse = c.properties.writeWithoutResponse;
+                            if(!found) {
+                                sUUID = s.uuid;
+                                cUUID = c.uuid;
                                 found = true;
-                                writeLog(`DITEMUKAN JALUR: ${c.uuid.slice(4,8)}`, "#f59e0b");
+                                writeLog("Ditemukan Jalur: " + c.uuid.slice(0,8));
                             }
                         }
                     });
                 });
-
-                if (found) writeLog("Printer Siap Digunakan!", "#10b981");
-                else writeLog("Karakteristik Write Tidak Ditemukan!", "#ef4444");
-
-            } catch (e) {
-                writeLog("ERROR: " + e.message, "#ef4444");
             }
+            if(!found) writeLog("Gagal: Karakteristik Write Tidak Ada.", true);
         }
 
-        async function testPrint() {
-            if (!deviceId || !targetChar) return writeLog("Konek dulu!", "#ef4444");
+        async function getConnectedDevices() {
+            const list = await BleClient.getConnectedDevices();
+            writeLog("Device Terhubung: " + JSON.stringify(list));
+        }
 
-            try {
-                const BleClient = window.Capacitor.Plugins.BluetoothLe;
-                writeLog("Menyiapkan Data...");
-                
-                const text = "\x1B@\x1Ba\x01TEST CETAK BERHASIL\nAUTO UUID DETECTED\n----------------\n\n\n\n";
-                const data = new TextEncoder().encode(text);
-                
-                writeLog("Mengirim (Chunking 20 bytes)...");
-                for (let i = 0; i < data.length; i += 20) {
-                    const chunk = data.slice(i, i + 20);
-                    const base64 = btoa(String.fromCharCode(...chunk));
-                    
-                    const options = {
-                        deviceId,
-                        service: targetService,
-                        characteristic: targetChar,
-                        value: base64
-                    };
+        async function testHeartbeat() {
+            if(!cUUID) throw new Error("Jalur UUID belum ada.");
+            writeLog("Kirim Heartbeat (1 byte)...");
+            const data = btoa("\n");
+            await BleClient.writeWithoutResponse({
+                deviceId: selectedId, service: sUUID, characteristic: cUUID, value: data
+            });
+            writeLog("Heartbeat Terkirim.");
+        }
 
-                    if (canWriteWithoutResponse) {
-                        await BleClient.writeWithoutResponse(options);
-                    } else {
-                        await BleClient.write(options);
-                    }
-                    
-                    writeLog(`Sent part ${Math.floor(i/20)+1}...`);
-                    await new Promise(r => setTimeout(r, 40));
-                }
-                writeLog("CETAK SELESAI!", "#10b981");
-            } catch (e) {
-                writeLog("CRASH TERCEGAH: " + e.message, "#ef4444");
-            }
+        async function testPrintFull() {
+            if(!cUUID) throw new Error("Jalur UUID belum ada.");
+            writeLog("Mengirim Struk Full...");
+            const text = "\x1B@TES CETAK SUKSES\n\n\n\n";
+            const data = btoa(text);
+            await BleClient.writeWithoutResponse({
+                deviceId: selectedId, service: sUUID, characteristic: cUUID, value: data
+            });
+            writeLog("Struk Terkirim.");
         }
     </script>
 </body>
