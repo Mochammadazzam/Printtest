@@ -1,20 +1,6 @@
 {
-  "appId": "com.sukalaundry.pro",
-  "appName": "Suka Laundry Pro",
+  "appId": "com.azzam.bluetoothprint",
+  "appName": "TesPrintAzzam",
   "webDir": "www",
-  "bundledWebRuntime": false,
-  "plugins": {
-    "BluetoothLe": {
-      "displayStrings": {
-        "scanning": "Mencari Printer EPPOS...",
-        "cancel": "Batal",
-        "availableDevices": "Printer Ditemukan",
-        "noDeviceFound": "Printer tidak terdeteksi"
-      }
-    }
-  },
-  "android": {
-    "allowMixedContent": true,
-    "captureInput": true
-  }
+  "bundledWebRuntime": false
 }
