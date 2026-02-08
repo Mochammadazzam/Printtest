@@ -47,11 +47,13 @@
 
     <div class="log" id="log-box">Ready to monitor...<br></div>
 
-    <script>
-        const BleClient = window.Capacitor.Plugins.BluetoothLe;
-        let selectedId = null;
-        let sUUID = null;
-        let cUUID = null;
+        <script>
+    const BleClient = window.Capacitor.Plugins.BluetoothLe;
+    const SERVICE_UUID = '00001101-0000-1000-8000-00805f9b34fb';
+    const CHARACTERISTIC_UUID = '00002a00'; 
+    let selectedId = null;
+    let sUUID = null; // Ini akan diisi otomatis saat klik Discover
+    let cUUID = null;
 
         // --- GLOBAL ERROR CATCHER (Pencegah Force Close Utama) ---
         window.onerror = function(msg, url, line) {
