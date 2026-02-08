@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BT Tester Pro</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        .log-area { background: #1e1e1e; color: #00ff00; padding: 10px; border-radius: 5px; height: 250px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+        button { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-blue { background: #007bff; color: white; }
+        .btn-green { background: #28a745; color: white; }
+        .status { font-weight: bold; padding: 5px; border-radius: 4px; }
+        .ok { background: #d4edda; color: #155724; }
+        .err { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+    <h3>BT Tester & Debugger</h3>
+    
+    <div class="card">
+        <button class="btn-blue" onclick="initBT()">1. Inisialisasi & Izin</button>
+        <button class="btn-blue" onclick="scanAndConnect()">2. Cari & Konek Printer</button>
+        <button class="btn-green" onclick="testPrint()">3. TES CETAK TEKS</button>
+    </div>
+
+    <div class="card">
+        <strong>System Log:</strong>
+        <div id="log" class="log-area">Menunggu perintah...<br></div>
+    </div>
+
+    <script>
+        // UUID STANDAR PRINTER THERMAL (Hampir semua sama)
+        const SERVICE_UUID = '000018f0-0000-1000-8000-00805f9b34fb';
+        const CHARACTERISTIC_UUID = '00002af1-0000-1000-8000-00805f9b34fb';
+        let selectedDevice = null;
+
+        function writeLog(msg, type = '') {
+            const log = document.getElementById('log');
+            const color = type === 'err' ? 'red' : (type === 'ok' ? '#00ff00' : 'white');
+            log.innerHTML += `<span style="color:${color}">[${new Date().toLocaleTimeString()}] ${msg}</span><br>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        async function initBT() {
+            try {
+                const BleClient = window.Capacitor.Plugins.BluetoothLe;
+                writeLog("Memulai inisialisasi...");
+                await BleClient.initialize();
+                writeLog("Status: BluetoothLe initialized", "ok");
+                
+                const isEnabled = await BleClient.isEnabled();
+                writeLog("Bluetooth aktif: " + isEnabled.value);
+            } catch (e) {
+                writeLog("Gagal Init: " + e.message, "err");
+            }
+        }
+
+        async function scanAndConnect() {
+            try {
+                const BleClient = window.Capacitor.Plugins.BluetoothLe;
+                writeLog("Mencari perangkat...");
+                
+                selectedDevice = await BleClient.requestDevice({ acceptAllDevices: true });
+                writeLog("Terpilih: " + selectedDevice.name + " (" + selectedDevice.deviceId + ")");
+
+                writeLog("Mencoba koneksi...");
+                await BleClient.connect({ deviceId: selectedDevice.deviceId });
+                writeLog("Tersambung!", "ok");
+
+                writeLog("Menarik Manifest Layanan (Discovery)...");
+                await BleClient.getServices({ deviceId: selectedDevice.deviceId });
+                writeLog("Discovery Selesai. Siap Cetak.", "ok");
+            } catch (e) {
+                writeLog("Koneksi Error: " + e.message, "err");
+            }
+        }
+
+        async function testPrint() {
+            if (!selectedDevice) return writeLog("Konek dulu ke printer!", "err");
+            
+            try {
+                const BleClient = window.Capacitor.Plugins.BluetoothLe;
+                writeLog("Menyiapkan payload kecil...");
+                
+                // Teks singkat (Low Memory Stress)
+                const text = "\x1B@TES PRINTER BERHASIL\nSUKA LAUNDRY PRO\n\n\n\n";
+                const encoder = new TextEncoder();
+                const data = encoder.encode(text);
+                
+                // CHUNKING: Kirim per 20 byte (Wajib)
+                writeLog("Mengirim data (Chunking 20 byte)...");
+                for (let i = 0; i < data.length; i += 20) {
+                    const chunk = data.slice(i, i + 20);
+                    const base64 = btoa(String.fromCharCode(...chunk));
+                    
+                    await BleClient.writeWithoutResponse({
+                        deviceId: selectedDevice.deviceId,
+                        service: SERVICE_UUID,
+                        characteristic: CHARACTERISTIC_UUID,
+                        value: base64
+                    });
+                    writeLog(`Sent chunk ${i/20 + 1}...`);
+                    await new Promise(r => setTimeout(r, 50)); // Jeda lebih lama untuk tes
+                }
+                writeLog("SEMUA DATA TERKIRIM!", "ok");
+            } catch (e) {
+                writeLog("Cetak Gagal: " + e.message, "err");
+            }
+        }
+    </script>
+</body>
+</html>
