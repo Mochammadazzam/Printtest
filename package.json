@@ -1,12 +1,6 @@
 {
   "name": "com.tester.bluetooth",
-  "version": "1.0.0",
-  "description": "Minimalist Bluetooth Printer Tester",
-  "main": "index.html",
-  "scripts": {
-    "sync": "npx cap sync",
-    "add-android": "npx cap add android"
-  },
+  "version": "1.0.1",
   "dependencies": {
     "@capacitor/android": "6.0.0",
     "@capacitor/core": "6.0.0",
