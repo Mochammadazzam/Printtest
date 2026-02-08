@@ -1,0 +1,12 @@
+{
+  "appId": "com.tester.bluetooth",
+  "appName": "BT Tester Pro",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
