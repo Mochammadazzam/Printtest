@@ -3,121 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suka Laundry - EPPOS Fix</title>
+    <title>Suka Laundry Pro - Ultimate Printer</title>
     <style>
-        body { font-family: sans-serif; padding: 10px; background: #f0f4f8; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
-        button { padding: 12px 5px; border: none; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer; color: white; background: #4b5563; }
-        .btn-ready { background: #2563eb; }
-        .btn-action { background: #059669; }
-        .btn-danger { background: #dc2626; }
-        .log { background: #000; color: #0f0; padding: 10px; border-radius: 8px; height: 350px; overflow-y: auto; font-family: monospace; font-size: 10px; border: 2px solid #333; }
-        .section-title { font-size: 10px; font-weight: bold; color: #666; margin: 10px 0 5px 2px; text-transform: uppercase; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #eef2f3; color: #333; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+        h2 { text-align: center; color: #1a73e8; margin-bottom: 5px; }
+        p { text-align: center; font-size: 12px; color: #666; margin-bottom: 25px; }
+        .btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-weight: bold; font-size: 14px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+        .btn-primary { background: #1a73e8; color: white; }
+        .btn-success { background: #34a853; color: white; box-shadow: 0 4px 12px rgba(52, 168, 83, 0.3); }
+        .btn:active { transform: scale(0.95); opacity: 0.9; }
+        #status-box { background: #1e293b; color: #00ff41; padding: 15px; border-radius: 10px; height: 150px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 11px; margin-top: 20px; border-left: 4px solid #1a73e8; }
+        .divider { height: 1px; background: #ddd; margin: 20px 0; }
     </style>
 </head>
 <body>
 
-    <h4 style="margin: 5px 0; text-align: center;">SUKA LAUNDRY PRO (FIX 1101)</h4>
-
-    <div class="section-title">1. Tahap Inisialisasi</div>
-    <div class="grid">
-        <button class="btn-ready" onclick="safeRun(requestPermissions)">1. MINTA IZIN</button>
-        <button class="btn-ready" onclick="safeRun(initModule)">2. INIT (NO LOCATION)</button>
+    <div class="card">
+        <h2>SUKA LAUNDRY</h2>
+        <p>POS Printer System v2.0</p>
+        
+        <button class="btn btn-primary" onclick="startSystem()">1. INITIALIZE & SCAN</button>
+        <button class="btn btn-primary" onclick="connectToPrinter()">2. CONNECT PRINTER</button>
+        
+        <div class="divider"></div>
+        
+        <button class="btn btn-success" onclick="printPowerfull()">3. CETAK STRUK (NATIVE LOGIC)</button>
+        
+        <div id="status-box">Menunggu perintah Azzam...<br></div>
     </div>
-
-    <div class="section-title">2. Tahap Koneksi</div>
-    <div class="grid">
-        <button class="btn-action" onclick="scanPrinter()">3. CARI PRINTER</button>
-        <button class="btn-action" onclick="connectPrinter()">4. SAMBUNGKAN</button>
-    </div>
-
-    <div class="section-title">3. Tahap Cetak</div>
-    <div class="grid">
-        <button class="btn-danger" onclick="testHeartbeat()">5. TES JALUR 1101</button>
-        <button class="btn-danger" onclick="testPrintFull()">6. CETAK STRUK</button>
-    </div>
-
-    <div id="log-box" class="log">Menunggu instruksi...<br></div>
 
     <script>
         const BleClient = window.Capacitor.Plugins.BluetoothLe;
-        
-        // UUID SPP Universal untuk Printer Thermal EPPOS
-        const SERVICE_UUID = '00001101-0000-1000-8000-00805f9b34fb';
-        const CHARACTERISTIC_UUID = '00001101-0000-1000-8000-00805f9b34fb'; 
-        
-        let selectedId = null;
+        const SPP_UUID = '00001101-0000-1000-8000-00805f9b34fb';
+        let deviceId = null;
 
-        function writeLog(msg, isError = false) {
-            const box = document.getElementById('log-box');
-            const color = isError ? "#ff4444" : "#00ff00";
-            box.innerHTML += `<span style="color:${color}">[${new Date().toLocaleTimeString()}] ${msg}</span><br>`;
+        function log(msg) {
+            const box = document.getElementById('status-box');
+            box.innerHTML += `> ${msg}<br>`;
             box.scrollTop = box.scrollHeight;
         }
 
-        async function safeRun(func) {
-            try { await func(); } catch (e) {
-                writeLog("ERROR: " + e.message, true);
-            }
+        async function startSystem() {
+            try {
+                log("Memulai modul (No Location Mode)...");
+                await BleClient.initialize({ androidNeverForLocation: true });
+                
+                log("Meminta Izin Bluetooth...");
+                await BleClient.requestPermissions();
+                
+                log("Mencari Printer...");
+                const device = await BleClient.requestDevice({ acceptAllDevices: true });
+                deviceId = device.deviceId;
+                log(`Terpilih: ${device.name || 'Unknown Device'}`);
+            } catch (e) { log(`Error: ${e.message}`); }
         }
 
-        async function requestPermissions() {
-            writeLog("Memproses Izin Bluetooth...");
-            await BleClient.requestPermissions();
-            writeLog("Izin OK.");
+        async function connectToPrinter() {
+            if (!deviceId) return alert("Pilih printer dulu di langkah 1!");
+            try {
+                log("Menyambungkan Socket RFCOMM...");
+                await BleClient.connect({ deviceId });
+                log("STATUS: TERHUBUNG KE EPPOS.");
+            } catch (e) { log(`Gagal: ${e.message}`); }
         }
 
-        async function initModule() {
-            writeLog("Inisialisasi Tanpa Lokasi (Android 12+)...");
-            // Sesuai dokumen: androidNeverForLocation: true
-            await BleClient.initialize({ androidNeverForLocation: true });
-            writeLog("Modul Bluetooth Siap.");
+        // FUNGSI POWERFULL: GABUNGAN LOGIKA NATIVE + PRAWITO
+        async function printPowerfull() {
+            if (!deviceId) return alert("Koneksi belum siap!");
+            try {
+                log("Menyusun Byte Data...");
+                const encoder = new TextEncoder();
+
+                // 1. HEADER (Logika Native Java: Blank Lines)
+                const initCmd = new Uint8Array([0x1B, 0x40]); // ESC @ (Reset)
+                const alignCenter = new Uint8Array([0x1B, 0x61, 0x01]); // ESC a 1 (Center)
+                const alignLeft = new Uint8Array([0x1B, 0x61, 0x00]); // ESC a 0 (Left)
+                const boldOn = new Uint8Array([0x1B, 0x45, 0x01]); // ESC E 1 (Bold On)
+                const boldOff = new Uint8Array([0x1B, 0x45, 0x00]); // ESC E 0 (Bold Off)
+
+                // 2. TEXT CONTENT (Logika Prawito: Spacing & Separator)
+                const headerText = encoder.encode("SUKA LAUNDRY PRO\n");
+                const subHeader = encoder.encode("Cepat - Bersih - Wangi\n");
+                const line = encoder.encode("================================\n");
+                
+                const bodyText = encoder.encode(
+                    "Pelanggan : Azzam\n" +
+                    "Tanggal   : 08-02-2026\n" +
+                    "--------------------------------\n" +
+                    "Paket     : Cuci Kering\n" +
+                    "Berat     : 5 Kg\n" +
+                    "Total     : Rp 35.000\n" +
+                    "--------------------------------\n"
+                );
+                
+                const footerText = encoder.encode("   TERIMA KASIH BANYAK\n\n");
+                
+                // 3. FEEDING (Logika Prawito: Agar kertas keluar cukup panjang)
+                const feed = encoder.encode("\n\n\n\n\n");
+
+                // GABUNGKAN SEMUA BYTE
+                const payload = new Uint8Array([
+                    ...initCmd, 
+                    ...alignCenter, ...boldOn, ...headerText, ...boldOff,
+                    ...subHeader, ...line,
+                    ...alignLeft, ...bodyText,
+                    ...alignCenter, ...footerText,
+                    ...feed
+                ]);
+
+                // KONVERSI KE BASE64 (Syarat Capacitor)
+                const base64Data = btoa(String.fromCharCode(...payload));
+
+                log("Mengirim Stream Byte ke Motor...");
+                await BleClient.write({
+                    deviceId,
+                    service: SPP_UUID,
+                    characteristic: SPP_UUID, // SPP mode menggunakan UUID yang sama
+                    value: base64Data
+                });
+                log("CETAK BERHASIL!");
+
+            } catch (e) { log(`Crash: ${e.message}`); }
         }
-
-        async function scanPrinter() {
-            writeLog("Membuka daftar perangkat...");
-            const device = await BleClient.requestDevice({ acceptAllDevices: true });
-            selectedId = device.deviceId;
-            writeLog("Terpilih: " + device.name + " (" + selectedId + ")");
-        }
-
-        async function connectPrinter() {
-            if(!selectedId) throw new Error("Pilih printer dulu!");
-            writeLog("Menyambungkan...");
-            await BleClient.connect({ deviceId: selectedId });
-            writeLog("TERHUBUNG KE PRINTER!");
-        }
-
-        async function testHeartbeat() {
-            if(!selectedId) throw new Error("Belum tersambung!");
-            writeLog("Mencoba kirim 1 byte ke Jalur 1101...");
-            const data = btoa("\n"); 
-            await BleClient.writeWithoutResponse({
-                deviceId: selectedId,
-                service: SERVICE_UUID,
-                characteristic: CHARACTERISTIC_UUID,
-                value: data
-            });
-            writeLog("Jalur 1101 Aktif! Printer harusnya merespon.");
-        }
-
-        async function testPrintFull() {
-    if(!selectedId) throw new Error("Belum tersambung!");
-    writeLog("Memancing printer...");
-    
-    // Gunakan banyak baris baru dan teks sederhana tanpa perintah ESC/POS rumit dulu
-    const simpleText = "CEK CEK CEK\nSUKA LAUNDRY PRO\n\n\n\n\n\n";
-    const data = btoa(simpleText);
-    
-    await BleClient.writeWithoutResponse({
-        deviceId: selectedId,
-        service: SERVICE_UUID,
-        characteristic: CHARACTERISTIC_UUID,
-        value: data
-    });
-    writeLog("Perintah sederhana terkirim.");
-}
-
     </script>
 </body>
 </html>
