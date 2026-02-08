@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suka Laundry - BT Diagnostic</title>
+    <title>Suka Laundry - EPPOS Fix</title>
     <style>
         body { font-family: sans-serif; padding: 10px; background: #f0f4f8; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
@@ -17,38 +17,32 @@
 </head>
 <body>
 
-    <h4 style="margin: 5px 0; text-align: center;">SUKA LAUNDRY PRO (FIX ANDROID 12+)</h4>
+    <h4 style="margin: 5px 0; text-align: center;">SUKA LAUNDRY PRO (FIX 1101)</h4>
 
-    <div class="section-title">1. System & Permissions</div>
+    <div class="section-title">1. Tahap Inisialisasi</div>
     <div class="grid">
-        <button class="btn-ready" onclick="safeRun(checkPermissions)">1. CEK IZIN</button>
-        <button class="btn-ready" onclick="safeRun(requestPermissions)">2. MINTA IZIN</button>
+        <button class="btn-ready" onclick="safeRun(requestPermissions)">1. MINTA IZIN</button>
+        <button class="btn-ready" onclick="safeRun(initModule)">2. INIT (NO LOCATION)</button>
     </div>
 
-    <div class="section-title">2. Module Initialization</div>
+    <div class="section-title">2. Tahap Koneksi</div>
     <div class="grid">
-        <button class="btn-ready" onclick="safeRun(initModule)">3. INIT (NO LOCATION)</button>
-        <button class="btn-ready" onclick="safeRun(checkStatus)">4. CEK STATUS BT</button>
+        <button class="btn-action" onclick="scanPrinter()">3. CARI PRINTER</button>
+        <button class="btn-action" onclick="connectPrinter()">4. SAMBUNGKAN</button>
     </div>
 
-    <div class="section-title">3. Connection</div>
+    <div class="section-title">3. Tahap Cetak</div>
     <div class="grid">
-        <button class="btn-action" onclick="safeRun(scanPrinter)">5. SCAN PRINTER</button>
-        <button class="btn-action" onclick="safeRun(connectPrinter)">6. KONEK PRINTER</button>
+        <button class="btn-danger" onclick="testHeartbeat()">5. TES JALUR 1101</button>
+        <button class="btn-danger" onclick="testPrintFull()">6. CETAK STRUK</button>
     </div>
 
-    <div class="section-title">4. Data (EPPOS Standard)</div>
-    <div class="grid">
-        <button class="btn-danger" onclick="safeRun(testHeartbeat)">7. TES 1 BYTE</button>
-        <button class="btn-danger" onclick="safeRun(testPrintFull)">8. CETAK STRUK</button>
-    </div>
-
-    <div id="log-box" class="log">Ready...<br></div>
+    <div id="log-box" class="log">Menunggu instruksi...<br></div>
 
     <script>
         const BleClient = window.Capacitor.Plugins.BluetoothLe;
         
-        // UUID Standar SPP untuk EPPOS RPP02 sesuai dokumentasi dan log Anda
+        // UUID SPP Universal untuk Printer Thermal EPPOS
         const SERVICE_UUID = '00001101-0000-1000-8000-00805f9b34fb';
         const CHARACTERISTIC_UUID = '00001101-0000-1000-8000-00805f9b34fb'; 
         
@@ -62,82 +56,63 @@
         }
 
         async function safeRun(func) {
-            try {
-                await func();
-            } catch (e) {
+            try { await func(); } catch (e) {
                 writeLog("ERROR: " + e.message, true);
-                alert("Proses Gagal: " + e.message);
             }
         }
 
-        async function checkPermissions() {
-            const s = await BleClient.checkPermissions();
-            writeLog("Status Izin: " + JSON.stringify(s));
-        }
-
         async function requestPermissions() {
-            writeLog("Meminta izin Bluetooth...");
+            writeLog("Memproses Izin Bluetooth...");
             await BleClient.requestPermissions();
-            writeLog("Izin selesai diproses.");
+            writeLog("Izin OK.");
         }
 
         async function initModule() {
-            writeLog("Inisialisasi Tanpa Izin Lokasi...");
-            // SESUAI DOKUMENTASI: Menggunakan flag androidNeverForLocation
+            writeLog("Inisialisasi Tanpa Lokasi (Android 12+)...");
+            // Sesuai dokumen: androidNeverForLocation: true
             await BleClient.initialize({ androidNeverForLocation: true });
             writeLog("Modul Bluetooth Siap.");
         }
 
-        async function checkStatus() {
-            const s = await BleClient.isEnabled();
-            writeLog("Bluetooth HP Aktif: " + s.value);
-        }
-
         async function scanPrinter() {
-            writeLog("Mencari perangkat...");
+            writeLog("Membuka daftar perangkat...");
             const device = await BleClient.requestDevice({ acceptAllDevices: true });
             selectedId = device.deviceId;
             writeLog("Terpilih: " + device.name + " (" + selectedId + ")");
         }
 
         async function connectPrinter() {
-            if(!selectedId) throw new Error("ID Printer Kosong!");
-            writeLog("Menghubungkan ke " + selectedId + "...");
+            if(!selectedId) throw new Error("Pilih printer dulu!");
+            writeLog("Menyambungkan...");
             await BleClient.connect({ deviceId: selectedId });
-            writeLog("TERHUBUNG!");
+            writeLog("TERHUBUNG KE PRINTER!");
         }
 
         async function testHeartbeat() {
-            if(!selectedId) throw new Error("Belum terhubung!");
-            writeLog("Mengirim 1 byte ke SPP...");
-            
-            // Menggunakan btoa untuk konversi ke Base64 (Standard Capacitor Write)
+            if(!selectedId) throw new Error("Belum tersambung!");
+            writeLog("Mencoba kirim 1 byte ke Jalur 1101...");
             const data = btoa("\n"); 
-            
             await BleClient.writeWithoutResponse({
                 deviceId: selectedId,
                 service: SERVICE_UUID,
                 characteristic: CHARACTERISTIC_UUID,
                 value: data
             });
-            writeLog("Data 1 Byte Terkirim.");
+            writeLog("Jalur 1101 Aktif! Printer harusnya merespon.");
         }
 
         async function testPrintFull() {
-            if(!selectedId) throw new Error("Belum terhubung!");
-            writeLog("Mencetak Struk Suka Laundry...");
-            
-            // ESC/POS Command: Init (@) + Teks + Newline
-            const text = "\x1B@SUKA LAUNDRY PRO\nTes Bluetooth Berhasil\n------------------\n\n\n\n";
+            if(!selectedId) throw new Error("Belum tersambung!");
+            writeLog("Mencetak Struk...");
+            const text = "\x1B@   SUKA LAUNDRY PRO\n----------------------\nPrinter EPPOS Berhasil!\n\n\n\n";
             const data = btoa(text);
-            
             await BleClient.writeWithoutResponse({
                 deviceId: selectedId,
                 service: SERVICE_UUID,
                 characteristic: CHARACTERISTIC_UUID,
                 value: data
             });
-            writeLog("Cetak Selesai.");
+            writeLog("Cetak selesai.");
         }
     </script>
 </body>
