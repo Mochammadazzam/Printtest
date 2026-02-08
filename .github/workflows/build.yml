@@ -1,0 +1,41 @@
+name: Bluetooth Tester Build
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build Android
+        run: |
+          npx cap add android || true
+          npx cap sync
+
+      - name: Force Injection Permissions
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          # Suntik izin ke Manifest
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.BLUETOOTH" />\n    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />\n    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />\n    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' $MANIFEST
+
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: BT-Tester-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
