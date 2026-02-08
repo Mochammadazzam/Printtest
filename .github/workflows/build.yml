@@ -23,25 +23,21 @@ jobs:
 
       - name: Prepare Web Assets
         run: |
-          # Memastikan folder www ada dan berisi index.html
           mkdir -p www
-          if [ -f "index.html" ]; then
-            cp index.html www/
-          fi
+          cp index.html www/
 
       - name: Initialize Capacitor Android
         run: |
-          npx cap add android || echo "Folder sudah ada"
+          npx cap add android || true
           npx cap sync android
 
-      - name: Inject Hardware Permissions (EPPOS FIX)
+      - name: Inject Bluetooth Admin (Fix Force Close)
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # Menghapus tag permission lama agar tidak terjadi duplikasi yang merusak XML
+          # Hapus semua izin lama agar tidak bentrok
           sed -i '/<uses-permission/d' $MANIFEST
           
-          # Menyisipkan izin yang diminta oleh log: BLUETOOTH dan BLUETOOTH_ADMIN
-          # Serta izin standar Android 12-14 lainnya
+          # Suntik izin yang diminta oleh log diagnostik kamu (Admin & Connect)
           sed -i '/<application/i \
           <uses-permission android:name="android.permission.INTERNET" /> \
           <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" /> \
@@ -65,5 +61,5 @@ jobs:
       - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: BT-Tester-EPPOS-Fixed
+          name: BT-Tester-EPPOS-Final
           path: android/app/build/outputs/apk/debug/app-debug.apk
