@@ -1,42 +1,34 @@
-name: Build BT Tester Pro
-
-on:
-  push:
-    branches: [ main ]
+name: Build BT Pro Tester
+on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install Dependencies
+      - name: Install
         run: |
-          npm install
+          npm install --legacy-peer-deps
           npm install -g @capacitor/cli
 
-      - name: Prepare Web Assets
+      - name: Build Web
         run: |
           mkdir -p www
           cp index.html www/
 
-      - name: Initialize Capacitor Android
+      - name: Sync Android
         run: |
-          npx cap add android
+          npx cap add android || true
           npx cap sync android
 
-      - name: Inject Bluetooth Permissions (Stable Fix)
+      - name: Inject Permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # Menghapus baris izin lama agar tidak double
-          sed -i '/<uses-permission/d' $MANIFEST
-          # Menyisipkan izin Bluetooth standar Android 12-14 terbaru
+          # Suntik izin khusus Bluetooth agar tidak ditutup paksa oleh OS
           sed -i '/<application/i \
           <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" /> \
           <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" /> \
@@ -44,20 +36,20 @@ jobs:
           <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" /> \
           <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' $MANIFEST
 
-      - name: Setup Java 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Build APK with Gradle
+      - name: Build APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload Final APK
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: BT-Tester-Pro-Final
+          name: BT-Pro-Tester
           path: android/app/build/outputs/apk/debug/app-debug.apk
