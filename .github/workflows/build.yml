@@ -1,72 +1,28 @@
-name: Build Suka Laundry Pro - Ultimate Stable
-
-on:
-  push:
-    branches: [ main ]
+name: Build Android APK
+on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v3
+      - name: set up JDK 17
+        uses: actions/setup-java@v3
         with:
-          node-version: 20
-
+          java-version: '17'
+          distribution: 'zulu'
+      
       - name: Install Dependencies
         run: |
-          # legacy-peer-deps mencegah bentrok versi library bluetooth
-          npm install --legacy-peer-deps
-          npm install -g @capacitor/cli
-
-      - name: Web Assets Preparation
-        run: |
-          mkdir -p www
-          # Memastikan index.html masuk ke folder distribusi
-          cp index.html www/
-
-      - name: Capacitor Sync & Android Platform
-        run: |
-          npx cap add android || echo "Android folder already exists"
-          npx cap sync android
-
-      - name: Inject Powerful Android Manifest
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          npm install
+          npx cap add android
           
-          # 1. Suntik Namespace Tools agar atribut targetApi="s" tidak error saat build
-          sed -i 's|<manifest |<manifest xmlns:tools="http://schemas.android.com/tools" |g' $MANIFEST
-
-          # 2. Bersihkan permission bawaan agar tidak terjadi duplikasi yang merusak XML
-          sed -i '/<uses-permission/d' $MANIFEST
-          
-          # 3. Suntik Izin Spesifik (Logic dari Dokumen Android + Kode Java Prawito)
-          # BLUETOOTH_ADMIN & CONNECT adalah kunci agar tombol cetak tidak Force Close
-          sed -i '/<application/i \
-          <uses-permission android:name="android.permission.INTERNET" /> \
-          <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" /> \
-          <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" /> \
-          <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" tools:targetApi="s" /> \
-          <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" /> \
-          <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />' $MANIFEST
-
-      - name: Setup Java 17 (Required for Capacitor 6)
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Build Android Debug APK
+      - name: Build APK
         run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
-
-      - name: Upload Powerful APK
-        uses: actions/upload-artifact@v4
+          cd android && ./gradlew assembleDebug
+          
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
         with:
-          name: Suka-Laundry-Pro-Ultimate
+          name: app-debug.apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
