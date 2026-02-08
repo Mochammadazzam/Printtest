@@ -1,13 +1,20 @@
 {
-  "appId": "com.bt.tester.pro",
-  "appName": "BT Tester Pro",
+  "appId": "com.sukalaundry.pro",
+  "appName": "Suka Laundry Pro",
   "webDir": "www",
-  "server": {
-    "androidScheme": "https"
-  },
+  "bundledWebRuntime": false,
   "plugins": {
     "BluetoothLe": {
-      "displayAllDevices": true
+      "displayStrings": {
+        "scanning": "Mencari Printer EPPOS...",
+        "cancel": "Batal",
+        "availableDevices": "Printer Ditemukan",
+        "noDeviceFound": "Printer tidak terdeteksi"
+      }
     }
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true
   }
 }
