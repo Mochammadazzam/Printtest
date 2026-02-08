@@ -1,8 +1,13 @@
 {
-  "appId": "com.tester.bt.fast",
-  "appName": "BT Fast Tester",
+  "appId": "com.bt.tester.pro",
+  "appName": "BT Tester Pro",
   "webDir": "www",
   "server": {
     "androidScheme": "https"
+  },
+  "plugins": {
+    "BluetoothLe": {
+      "displayAllDevices": true
+    }
   }
 }
