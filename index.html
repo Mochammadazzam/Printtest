@@ -143,15 +143,25 @@
             writeLog("Device Terhubung: " + JSON.stringify(list));
         }
 
-        async function testHeartbeat() {
-            if(!cUUID) throw new Error("Jalur UUID belum ada.");
-            writeLog("Kirim Heartbeat (1 byte)...");
-            const data = btoa("\n");
-            await BleClient.writeWithoutResponse({
-                deviceId: selectedId, service: sUUID, characteristic: cUUID, value: data
-            });
-            writeLog("Heartbeat Terkirim.");
-        }
+       async function testHeartbeat() {
+    // Gunakan hasil discovery (cUUID), jika gagal pakai manual EPPOS (CHARACTERISTIC_UUID)
+    const targetChar = cUUID || '00001101-0000-1000-8000-00805f9b34fb';
+    const targetService = sUUID || '00001101-0000-1000-8000-00805f9b34fb';
+    
+    if(!selectedId) throw new Error("Hubungkan printer terlebih dahulu!");
+    
+    writeLog("Mengirim data ke jalur: " + targetChar.slice(0,8));
+    const data = btoa("\n"); // Kirim karakter Newline
+    
+    await BleClient.writeWithoutResponse({
+        deviceId: selectedId, 
+        service: targetService, 
+        characteristic: targetChar, 
+        value: data
+    });
+    writeLog("Heartbeat Terkirim! Printer harusnya bereaksi.");
+}
+
 
         async function testPrintFull() {
             if(!cUUID) throw new Error("Jalur UUID belum ada.");
